@@ -1,0 +1,11 @@
+﻿@{
+    ViewData["Title"] = "Главная странциа";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Тестовое задание для Seti Group</h1>
+</div>
+
+<div class="container">
+    @(await Html.PartialAsync("~/Views/Components/Entity/TreeListComponent.cshtml"))
+</div>

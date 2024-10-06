@@ -1,0 +1,129 @@
+﻿@using Kendo.Mvc.UI
+@using TestSetiGroup.Models.Entity
+
+
+<script id="columnTemplate" type="text/x-kendo-template">
+    <div class="cell-with-popover" data-text="#:Value#">
+        # if(ChildrenValues > 1000) { #
+            <b>#: ChildrenValues #</b>
+        #} else { #
+            #: ChildrenValues #
+        #} #
+    </div>
+</script>
+
+@(Html.Kendo().TreeList<EntityViewModel>()
+    .Name("entityTreeList")
+    .Toolbar(toolbar =>
+    {
+        toolbar.Create().Text("Добавить сущность");
+        toolbar.Save().Text("Сохранить изменения");
+        toolbar.Cancel().Text("Отмена изменений");
+    })
+    .Columns(columns =>
+    {
+        columns.Add()
+            .Field(e => e.Name)
+            .Width(200)
+            .Title("Название")
+        ;
+
+        columns.Add()
+            .Field(e => e.Value)
+            .Width(200)
+            .Title("Значение")
+            .TemplateId("columnTemplate")
+            .Format("{0:0.##}")
+        ;
+        
+        columns.Add()
+            .Width(300)
+            .Title("Операции")
+            .Command(c =>
+            {
+                c.CreateChild().Text("Добавить подсущность");
+                c.Custom().Text("Удалить").Name("onDeleteClick-button").Click("onDeleteClick").Icon("trash");
+            });
+    })
+    .Sortable()
+    .Filterable()
+    .Editable(e => e
+        .Mode(TreeListEditMode.InCell)
+        .Template("test")
+    )
+    .DataSource(dataSource => dataSource
+        .Events(e =>
+        {
+            e.Error("onError");
+            e.Sync("updateAll");
+        })
+        .Read(c => c.Url("/api/entity/getAll").Type(HttpVerbs.Get))
+        .Create(c => c.Url("/api/entity/add").Type(HttpVerbs.Post))
+        .Update(c => c.Url("/api/entity/update").Type(HttpVerbs.Put))
+        .Destroy(c => c.Url("/api/entity/delete").Type(HttpVerbs.Delete))
+        .ServerOperation(false)
+        .Model(e =>
+        {
+            e.Id(m => m.Id);
+            e.ParentId(m => m.ReportsTo);
+            e.Expanded(false);
+            e.Field(m => m.Name);
+            e.Field(m => m.ChildrenValues).DefaultValue(0);
+        })
+    )
+    .Pageable(p => p
+        .PageSize(10)
+        .PageSizes(true)
+    )
+)
+
+<script>
+    function onError(e) {
+        alert(e.errors)
+    }
+
+    function updateAll() {
+        this.read();
+    }
+    
+    function onDeleteClick(e) {
+        e.preventDefault();
+        
+        let dataItem = this.dataItem($(e.currentTarget).closest("tr"));
+
+        $.ajax({
+            url: "/api/entity/delete",
+            type: "DELETE",
+            data: { id: dataItem.Id },
+            success: function() {
+                // Обновление TreeList после успешного удаления
+                $("#entityTreeList").data("kendoTreeList").dataSource.read();
+            },
+            error: function() {
+                alert("Ошибка при удалении элемента.");
+            }
+        });
+    }
+    
+    $(document)
+    .off("mouseenter", ".cell-with-popover")
+    .on("mouseenter", ".cell-with-popover", function () {
+        const $el = $(this);
+
+        $el.kendoPopover({
+            showOn: "focus",
+            position: "left",
+            header: "Введённое значенеие", 
+            body: function (e) {
+                return e.target[0]?.dataset?.text || "";
+            },
+            hide: function (e)  {
+                this.wrapper[0].closest(".k-animation-container").remove();
+            }
+        })
+        .trigger("focus")
+        .on("mouseleave", () => $el.trigger("blur"))
+        ;
+    })
+
+</script>
